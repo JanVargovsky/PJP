@@ -45,15 +45,16 @@ public:
 
 		Matrix * result = new Matrix(this->rows, other->columns);
 
-//#pragma omp parallel for schedule(static, this->rows / omp_get_num_threads())
+#pragma omp parallel for
+		//schedule(static, this->rows / omp_get_num_threads())
 		for (int row = 0; row < this->rows; row++)
-#pragma omp parallel for schedule(static, other->columns / omp_get_num_threads())
+#pragma omp parallel for
+		//schedule(static, other->columns / omp_get_num_threads())
 			for (int col = 0; col < other->columns; col++)
 			{
 				double tmp = 0;
-#pragma omp parallel for
+				#pragma omp parallel for reduction(+:tmp)
 				for (int i = 0; i < this->columns; i++)
-#pragma omp atomic
 					tmp += this->Get(row, i) * other->Get(i, col);
 
 				result->Set(row, col, tmp);
@@ -104,7 +105,7 @@ int main()
 #endif
 	omp_set_num_threads(omp_get_max_threads());
 
-	const int SIZE = 2500;
+	const int SIZE = 1500;
 	double start = omp_get_wtime();
 	auto a = RandomMatrix(SIZE, SIZE);
 	double end = omp_get_wtime();
