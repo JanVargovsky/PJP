@@ -13,7 +13,7 @@ int USE_PARALLEL = 1;
 class Matrix
 {
 private:
-	const int MIN_SIZE_TO_USE_STRASSEN = 64;
+	const int MIN_SIZE_TO_USE_STRASSEN = 128;
 
 	const int rows, columns;
 	const int size;
@@ -333,22 +333,44 @@ public:
 		auto b21 = SubMatrixParallel(halfN, n, 0, halfN);
 		auto b22 = SubMatrixParallel(halfN, n, halfN, n);
 
-		// TODO: Fix memory leaks !!!
+		// m1
+		auto m1_a = (*a11 + *a22);
+		auto m1_b = (*b11 + *b22);
+		// m2
+		auto m2_a = *a21 + *a22;
+		// m3
+		auto m3_b = (*b12 - *b22);
+		// m4
+		auto m4_b = (*b21 - *b11);
+		// m5
+		auto m5_a = *a11 + *a12;
+		// m6
+		auto m6_a = *a21 - *a11;
+		auto m6_b = *b11 + *b12;
+		// m7
+		auto m7_a = *a12 - *a22;
+		auto m7_b = *b21 + *b22;
+
 		Matrix* m[7] = {
-			(*a11 + *a22)->StrassenMultiplyParallel(*(*b11 + *b22)), // m1
-			(*a21 + *a22)->StrassenMultiplyParallel(*b11), // m2
-			(a11)->StrassenMultiplyParallel(*(*b12 - *b22)), // m3
-			(a22)->StrassenMultiplyParallel(*(*b21 - *b11)), // m4
-			(*a11 + *a12)->StrassenMultiplyParallel(*b22), // m5
-			(*a21 - *a11)->StrassenMultiplyParallel(*(*b11 + *b12)), // m6
-			(*a12 - *a22)->StrassenMultiplyParallel(*(*b21 + *b22)), // m7
+			m1_a->StrassenMultiplyParallel(*m1_b), // m1
+			m2_a->StrassenMultiplyParallel(*b11), // m2
+			a11->StrassenMultiplyParallel(*m3_b), // m3
+			a22->StrassenMultiplyParallel(*m4_b), // m4
+			m5_a->StrassenMultiplyParallel(*b22), // m5
+			m6_a->StrassenMultiplyParallel(*m6_b), // m6
+			m7_a->StrassenMultiplyParallel(*m7_b), // m7
 		};
 
-		// TODO: Fix memory leaks !!!
-		auto c11 = *(*m[0] + *m[3]) - *(*m[4] + *m[6]);
+		auto c11_l = (*m[0] + *m[3]);
+		auto c11_r = (*m[4] + *m[6]);
+
+		auto c22_l = (*m[0] - *m[1]);
+		auto c22_r = (*m[2] + *m[5]);
+
+		auto c11 = *c11_l - *c11_r;
 		auto c12 = *m[2] + *m[4];
 		auto c21 = *m[1] + *m[3];
-		auto c22 = *(*m[0] - *m[1]) + *(*m[2] + *m[5]);
+		auto c22 = *c22_l + *c22_r;
 
 
 		auto result = CombineSubMatrices(*c11, *c12, *c21, *c22);
@@ -361,11 +383,28 @@ public:
 		delete b12;
 		delete b21;
 		delete b22;
+
+		delete  m1_a;
+		delete  m1_b;
+		delete  m2_a;
+		delete  m3_b;
+		delete  m4_b;
+		delete  m5_a;
+		delete  m6_a;
+		delete  m6_b;
+		delete  m7_a;
+		delete  m7_b;
+
 		for (int i = 0; i < 7; i++)
 			delete m[i];
+
+		delete c11_l;
+		delete c11_r;
 		delete c11;
 		delete c12;
 		delete c21;
+		delete c22_l;
+		delete c22_r;
 		delete c22;
 
 		return result;
@@ -408,7 +447,6 @@ void RunTest(Matrix * a, Matrix * b, int strassen, int parallel)
 {
 	USE_STRASSEN = strassen;
 	USE_PARALLEL = parallel;
-
 	auto start = omp_get_wtime();
 	auto c = *a * *b;
 	auto end = omp_get_wtime();
@@ -422,12 +460,12 @@ int main()
 {
 #ifdef _DEBUG
 	FILE *stream;
-	//freopen_s(&stream, "in.txt", "r", stdin);
+	freopen_s(&stream, "in.txt", "r", stdin);
 	freopen_s(&stream, "out.txt", "w", stdout);
 #endif
 	omp_set_num_threads(omp_get_max_threads());
 
-	const int SIZE = 2048;
+	const int SIZE = 4096;
 	double start = omp_get_wtime();
 	auto a = RandomMatrix(SIZE, SIZE);
 	double end = omp_get_wtime();
@@ -437,42 +475,11 @@ int main()
 	auto b = RandomMatrix(SIZE, SIZE);
 	end = omp_get_wtime();
 	PrintMeasureResult("Generating B", start, end);
-	//start = omp_get_wtime();
-	//auto c = *a * *b;
-	//end = omp_get_wtime();
-	//PrintMeasureResult("A*B", start, end);
-
-	//FILE *stream;
-	//if (USE_STRASSEN)
-	//	freopen_s(&stream, "out-strassen.txt", "w", stdout);
-	//else
-	//	freopen_s(&stream, "out.txt", "w", stdout);
-
 
 	RunTest(a, b, 1, 1); // parallel strassen
 	//RunTest(a, b, 1, 0); // normal strassen
 	//RunTest(a, b, 0, 1); // parallel multiplication
 	//RunTest(a, b, 0, 0); // normal multiplication
-
-	//USE_STRASSEN = 0;
-	////freopen_s(&stream, "out.txt", "w", stdout);
-	////cout << "A" << endl << *a << endl;
-	////cout << "B" << endl << *b << endl;
-	//start = omp_get_wtime();
-	//c = *a * *b;
-	//end = omp_get_wtime();
-	//PrintMeasureResult("Normal A*B", start, end);
-	////cout << "C" << endl << *c << endl;
-
-	//USE_STRASSEN = 1;
-	////freopen_s(&stream, "out-strassen.txt", "w", stdout);
-	////cout << "A" << endl << *a << endl;
-	////cout << "B" << endl << *b << endl;
-	//start = omp_get_wtime();
-	//c = *a * *b;
-	//end = omp_get_wtime();
-	//PrintMeasureResult("Strassen A*B", start, end);
-	////cout << "C" << endl << *c << endl;
 
 	delete a;
 	delete b;
