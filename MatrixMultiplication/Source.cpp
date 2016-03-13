@@ -53,15 +53,6 @@ private:
 		int rowShift = a11.rows;
 		int colShift = a11.columns;
 
-		//cout << "a11" << endl;
-		//cout << a11.ToString() << endl;
-		//cout << "a12" << endl;
-		//cout << a12.ToString() << endl;
-		//cout << "a21" << endl;
-		//cout << a21.ToString() << endl;
-		//cout << "a22" << endl;
-		//cout << a22.ToString() << endl;
-
 		for (int row = 0; row < a11.rows; row++)
 			for (int col = 0; col < a11.columns; col++)
 			{
@@ -70,9 +61,6 @@ private:
 				result->Set(row + rowShift, col, a21.Get(row, col));
 				result->Set(row + rowShift, col + colShift, a22.Get(row, col));
 			}
-
-		//cout << "COMBINED" << endl;
-		//cout << result->ToString() << endl;
 
 		return result;
 	}
@@ -373,16 +361,6 @@ public:
 		auto m6_a = *a21 - *a11;  auto m6_b = *b11 + *b12;
 		auto m7_a = *a12 - *a22;  auto m7_b = *b21 + *b22;
 
-		//Matrix* m_STRASSEN[7] = {
-		//	m1_a->StrassenMultiplyParallel(*m1_b), // m1
-		//	m2_a->StrassenMultiplyParallel(*m2_b), // m2
-		//	m3_a->StrassenMultiplyParallel(*m3_b), // m3
-		//	m4_a->StrassenMultiplyParallel(*m4_b), // m4
-		//	m5_a->StrassenMultiplyParallel(*m5_b), // m5
-		//	m6_a->StrassenMultiplyParallel(*m6_b), // m6
-		//	m7_a->StrassenMultiplyParallel(*m7_b), // m7
-		//};
-
 		Matrix* m[7] = {
 			m1_a->StrassenMultiplyParallel(*m1_b), // m1
 			m2_a->StrassenMultiplyParallel(*m2_b), // m2
@@ -392,25 +370,6 @@ public:
 			m6_a->StrassenMultiplyParallel(*m6_b), // m6
 			m7_a->StrassenMultiplyParallel(*m7_b), // m7
 		};
-
-		//for (size_t i = 0; i < 7; i++)
-		//{
-		//	if (!m[i]->AreEqual(*m_STRASSEN[i]))
-		//	{
-		//		if (i == 1)
-		//		{
-		//			cout << *m2_a << endl;
-		//			cout << "*" << endl;
-		//			cout << *m2_b << endl;
-		//		}
-		//		cout << "STRASSEN M" << (i + 1) << endl;
-		//		cout << *m_STRASSEN[i] << endl;
-		//		cout << "CORRECT M" << (i + 1) << endl;
-		//		cout << *m[i] << endl;
-		//	}
-		//}
-
-		//cout << endl;
 
 		auto c11_l = (*m[0] + *m[3]);
 		auto c11_r = (*m[6] - (*m[4]));
@@ -499,9 +458,6 @@ void RunTest(Matrix * a, Matrix * b, int strassen, int parallel)
 	stringstream ss;
 	ss << "Strassen = " << strassen << " Parallel = " << parallel << " TIME";
 	cout << ss.str() << ": " << (end - start) << "s" << endl;
-	//cout << "A" << endl << *a << endl;
-	//cout << "B" << endl << *b << endl;
-	//cout << "C" << endl << *c << endl;
 	delete c;
 }
 
@@ -526,7 +482,7 @@ int main()
 	RunTest(a, b, 1, 1); // parallel strassen
 	RunTest(a, b, 1, 0); // normal strassen
 	RunTest(a, b, 0, 1); // parallel multiplication
-	RunTest(a, b, 0, 0); // normal multiplication
+	//RunTest(a, b, 0, 0); // normal multiplication
 
 	delete a;
 	delete b;
