@@ -333,21 +333,14 @@ public:
 		auto b21 = SubMatrixParallel(halfN, n, 0, halfN);
 		auto b22 = SubMatrixParallel(halfN, n, halfN, n);
 
-		// m1
 		auto m1_a = (*a11 + *a22);
 		auto m1_b = (*b11 + *b22);
-		// m2
 		auto m2_a = *a21 + *a22;
-		// m3
 		auto m3_b = (*b12 - *b22);
-		// m4
 		auto m4_b = (*b21 - *b11);
-		// m5
 		auto m5_a = *a11 + *a12;
-		// m6
 		auto m6_a = *a21 - *a11;
 		auto m6_b = *b11 + *b12;
-		// m7
 		auto m7_a = *a12 - *a22;
 		auto m7_b = *b21 + *b22;
 
@@ -384,16 +377,16 @@ public:
 		delete b21;
 		delete b22;
 
-		delete  m1_a;
-		delete  m1_b;
-		delete  m2_a;
-		delete  m3_b;
-		delete  m4_b;
-		delete  m5_a;
-		delete  m6_a;
-		delete  m6_b;
-		delete  m7_a;
-		delete  m7_b;
+		delete m1_a;
+		delete m1_b;
+		delete m2_a;
+		delete m3_b;
+		delete m4_b;
+		delete m5_a;
+		delete m6_a;
+		delete m6_b;
+		delete m7_a;
+		delete m7_b;
 
 		for (int i = 0; i < 7; i++)
 			delete m[i];
@@ -465,7 +458,7 @@ int main()
 #endif
 	omp_set_num_threads(omp_get_max_threads());
 
-	const int SIZE = 4096;
+	const int SIZE = 2048;
 	double start = omp_get_wtime();
 	auto a = RandomMatrix(SIZE, SIZE);
 	double end = omp_get_wtime();
