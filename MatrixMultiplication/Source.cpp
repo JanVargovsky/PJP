@@ -4,6 +4,7 @@
 #include <string>
 #include <cstring>
 #include <sstream>
+#include <windows.h>
 
 using namespace std;
 
@@ -46,7 +47,7 @@ private:
 		return result;
 	}
 
-	Matrix * CombineSubMatrices(Matrix & a11, Matrix & a12, Matrix & a21, Matrix & a22) const
+	Matrix * CombineSubMatricesSingle(Matrix & a11, Matrix & a12, Matrix & a21, Matrix & a22) const
 	{
 		// TODO: add validation
 		Matrix * result = new Matrix(a11.rows * 2, a11.columns * 2);
@@ -54,6 +55,27 @@ private:
 		int colShift = a11.columns;
 
 		for (int row = 0; row < a11.rows; row++)
+			for (int col = 0; col < a11.columns; col++)
+			{
+				result->Set(row, col, a11.Get(row, col));
+				result->Set(row, col + colShift, a12.Get(row, col));
+				result->Set(row + rowShift, col, a21.Get(row, col));
+				result->Set(row + rowShift, col + colShift, a22.Get(row, col));
+			}
+
+		return result;
+	}
+
+	Matrix * CombineSubMatricesParallel(Matrix & a11, Matrix & a12, Matrix & a21, Matrix & a22) const
+	{
+		// TODO: add validation
+		Matrix * result = new Matrix(a11.rows * 2, a11.columns * 2);
+		int rowShift = a11.rows;
+		int colShift = a11.columns;
+
+#pragma omp parallel for
+		for (int row = 0; row < a11.rows; row++)
+#pragma omp parallel for
 			for (int col = 0; col < a11.columns; col++)
 			{
 				result->Set(row, col, a11.Get(row, col));
@@ -332,7 +354,7 @@ public:
 		auto c21 = *m[1] + *m[3];
 		auto c22 = *c22_l + *c22_r;
 
-		auto result = CombineSubMatrices(*c11, *c12, *c21, *c22);
+		auto result = CombineSubMatricesSingle(*c11, *c12, *c21, *c22);
 
 		delete a11;
 		delete a12;
@@ -424,7 +446,7 @@ public:
 		auto c21 = *m[1] + *m[3];
 		auto c22 = *c22_l + *c22_r;
 
-		auto result = CombineSubMatrices(*c11, *c12, *c21, *c22);
+		auto result = CombineSubMatricesParallel(*c11, *c12, *c21, *c22);
 
 		delete a11;
 		delete a12;
@@ -497,7 +519,7 @@ void RunTest(Matrix * a, Matrix * b, int strassen, int parallel)
 	auto c = *a * *b;
 	auto end = omp_get_wtime();
 	stringstream ss;
-	ss << "Strassen = " << strassen << " Parallel = " << parallel << " TIME";
+	ss << (strassen ? "Strassen" : "Normal" ) << " " << (parallel ? "Parallel" : "Normal") << " TIME";
 	cout << ss.str() << ": " << (end - start) << "s" << endl;
 	delete c;
 }
@@ -509,6 +531,7 @@ int main()
 	//freopen_s(&stream, "in.txt", "r", stdin);
 	//freopen_s(&stream, "out.txt", "w", stdout);
 #endif
+	SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_HIGHEST);
 	omp_set_num_threads(omp_get_max_threads());
 
 	const int SIZE = 1024;
@@ -520,10 +543,15 @@ int main()
 	auto b = RandomMatrix(SIZE, SIZE);
 	end = omp_get_wtime();
 
+	//for (int i = 0; i < 10; i++)
+	//	RunTest(a, b, 1, 1); // parallel strassen
+	//for (int i = 0; i < 10; i++)
+	//	RunTest(a, b, 1, 0); // normal strassen
+
 	RunTest(a, b, 1, 1); // parallel strassen
 	RunTest(a, b, 1, 0); // normal strassen
 	RunTest(a, b, 0, 1); // parallel multiplication
-	RunTest(a, b, 0, 0); // normal multiplication
+	//RunTest(a, b, 0, 0); // normal multiplication
 
 	delete a;
 	delete b;
