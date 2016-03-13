@@ -8,12 +8,12 @@
 using namespace std;
 
 int USE_STRASSEN = 1;
-int USE_PARALLEL = 0;
+int USE_PARALLEL = 1;
 
 class Matrix
 {
 private:
-	const int MIN_SIZE_TO_USE_STRASSEN = 4;
+	const int MIN_SIZE_TO_USE_STRASSEN = 64;
 
 	const int rows, columns;
 	const int size;
@@ -36,8 +36,8 @@ private:
 		// TODO: add validation
 		Matrix * result = new Matrix(rowTo - rowFrom, colTo - colFrom);
 
+		// TODO: Add parallel
 		for (int row = rowFrom, i = 0; row < rowTo; row++, i++)
-#pragma omp parallel for
 			for (int col = colFrom, j = 0; col < colTo; col++, j++)
 			{
 				result->Set(i, j, Get(row, col));
@@ -280,39 +280,57 @@ public:
 	Matrix * StrassenMultiplySingle(Matrix & other) const
 	{
 		// TODO: add validation
-
 		int n = other.rows;
 		if (n <= MIN_SIZE_TO_USE_STRASSEN)
-			return this->NormalMultiplySingle(other);
+			return this->NormalMultiplyParallel(other);
 
 		int halfN = n / 2;
-
 		auto a11 = SubMatrixSingle(0, halfN, 0, halfN);
 		auto a12 = SubMatrixSingle(0, halfN, halfN, n);
 		auto a21 = SubMatrixSingle(halfN, n, 0, halfN);
 		auto a22 = SubMatrixSingle(halfN, n, halfN, n);
 
-		auto b11 = SubMatrixSingle(0, halfN, 0, halfN);
-		auto b12 = SubMatrixSingle(0, halfN, halfN, n);
-		auto b21 = SubMatrixSingle(halfN, n, 0, halfN);
-		auto b22 = SubMatrixSingle(halfN, n, halfN, n);
+		auto b11 = other.SubMatrixSingle(0, halfN, 0, halfN);
+		auto b12 = other.SubMatrixSingle(0, halfN, halfN, n);
+		auto b21 = other.SubMatrixSingle(halfN, n, 0, halfN);
+		auto b22 = other.SubMatrixSingle(halfN, n, halfN, n);
 
-		// TODO: Fix memory leaks !!!
+		auto m1_a = *a11 + *a22;
+		auto m2_a = *a21 + *a22;
+		auto m3_a = a11;
+		auto m4_a = a22;
+		auto m5_a = *a11 + *a12;
+		auto m6_a = *a21 - *a11;
+		auto m7_a = *a12 - *a22;
+
+		auto m1_b = *b11 + *b22;
+		auto m2_b = b11;
+		auto m3_b = *b12 - *b22;
+		auto m4_b = *b21 - *b11;
+		auto m5_b = b22;
+		auto m6_b = *b11 + *b12;
+		auto m7_b = *b21 + *b22;
+
 		Matrix* m[7] = {
-			(*a11 + *a22)->StrassenMultiplySingle(*(*b11 + *b22)), // m1
-			(*a21 + *a22)->StrassenMultiplySingle(*b11), // m2
-			(a11)->StrassenMultiplySingle(*(*b12 - *b22)), // m3
-			(a22)->StrassenMultiplySingle(*(*b21 - *b11)), // m4
-			(*a11 + *a12)->StrassenMultiplySingle(*b22), // m5
-			(*a21 - *a11)->StrassenMultiplySingle(*(*b11 + *b12)), // m6
-			(*a12 - *a22)->StrassenMultiplySingle(*(*b21 + *b22)), // m7
+			m1_a->StrassenMultiplySingle(*m1_b), // m1
+			m2_a->StrassenMultiplySingle(*m2_b), // m2
+			m3_a->StrassenMultiplySingle(*m3_b), // m3
+			m4_a->StrassenMultiplySingle(*m4_b), // m4
+			m5_a->StrassenMultiplySingle(*m5_b), // m5
+			m6_a->StrassenMultiplySingle(*m6_b), // m6
+			m7_a->StrassenMultiplySingle(*m7_b), // m7
 		};
 
-		// TODO: Fix memory leaks !!!
-		auto c11 = *(*(*m[0] + *m[3]) - *m[4]) + *m[6];
+		auto c11_l = (*m[0] + *m[3]);
+		auto c11_r = (*m[6] - (*m[4]));
+
+		auto c22_l = (*m[0] - *m[1]);
+		auto c22_r = (*m[2] + *m[5]);
+
+		auto c11 = *c11_l + *c11_r;
 		auto c12 = *m[2] + *m[4];
 		auto c21 = *m[1] + *m[3];
-		auto c22 = *(*(*m[0] - *m[1]) + *m[2]) + *m[5];
+		auto c22 = *c22_l + *c22_r;
 
 		auto result = CombineSubMatrices(*c11, *c12, *c21, *c22);
 
@@ -324,11 +342,28 @@ public:
 		delete b12;
 		delete b21;
 		delete b22;
+
+		delete m1_a;
+		delete m1_b;
+		delete m2_a;
+		delete m3_b;
+		delete m4_b;
+		delete m5_a;
+		delete m6_a;
+		delete m6_b;
+		delete m7_a;
+		delete m7_b;
+
 		for (int i = 0; i < 7; i++)
 			delete m[i];
+
+		delete c11_l;
+		delete c11_r;
 		delete c11;
 		delete c12;
 		delete c21;
+		delete c22_l;
+		delete c22_r;
 		delete c22;
 
 		return result;
@@ -337,7 +372,6 @@ public:
 	Matrix * StrassenMultiplyParallel(Matrix & other) const
 	{
 		// TODO: add validation
-
 		int n = other.rows;
 		if (n <= MIN_SIZE_TO_USE_STRASSEN)
 			return this->NormalMultiplyParallel(other);
@@ -353,13 +387,21 @@ public:
 		auto b21 = other.SubMatrixParallel(halfN, n, 0, halfN);
 		auto b22 = other.SubMatrixParallel(halfN, n, halfN, n);
 
-		auto m1_a = *a11 + *a22;  auto m1_b = *b11 + *b22;
-		auto m2_a = *a21 + *a22;  auto m2_b = b11;
-		auto m3_a = a11;		  auto m3_b = *b12 - *b22;
-		auto m4_a = a22;		  auto m4_b = *b21 - *b11;
-		auto m5_a = *a11 + *a12;  auto m5_b = b22;
-		auto m6_a = *a21 - *a11;  auto m6_b = *b11 + *b12;
-		auto m7_a = *a12 - *a22;  auto m7_b = *b21 + *b22;
+		auto m1_a = *a11 + *a22;
+		auto m2_a = *a21 + *a22;
+		auto m3_a = a11;
+		auto m4_a = a22;
+		auto m5_a = *a11 + *a12;
+		auto m6_a = *a21 - *a11;
+		auto m7_a = *a12 - *a22;
+
+		auto m1_b = *b11 + *b22;
+		auto m2_b = b11;
+		auto m3_b = *b12 - *b22;
+		auto m4_b = *b21 - *b11;
+		auto m5_b = b22;
+		auto m6_b = *b11 + *b12;
+		auto m7_b = *b21 + *b22;
 
 		Matrix* m[7] = {
 			m1_a->StrassenMultiplyParallel(*m1_b), // m1
@@ -417,7 +459,6 @@ public:
 		delete c22;
 
 		return result;
-
 	}
 #pragma endregion
 };
@@ -482,7 +523,7 @@ int main()
 	RunTest(a, b, 1, 1); // parallel strassen
 	RunTest(a, b, 1, 0); // normal strassen
 	RunTest(a, b, 0, 1); // parallel multiplication
-	//RunTest(a, b, 0, 0); // normal multiplication
+	RunTest(a, b, 0, 0); // normal multiplication
 
 	delete a;
 	delete b;
