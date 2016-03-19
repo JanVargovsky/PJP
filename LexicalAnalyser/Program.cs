@@ -41,29 +41,35 @@ class Token
         return Type == token.Type && Value == token.Value;
     }
 
+    private static TokenType[] excludes = { TokenType.Divider, TokenType.Identifier, TokenType.Keyword, TokenType.Operator };
+
     public override string ToString()
     {
-        return Type.ToString() + (HasValue ? $":{Value}" : "");
+        if (excludes.Contains(Type))
+            return Value;
+        else
+            return Type.ToString() + (HasValue ? $":{Value}" : "");
     }
 }
 
-class LexicalAnalyser : IDisposable
+class LexicalAnalyser
 {
-    private readonly TextReader input;
-    private readonly Token[] operators, dividers, keywords;
-    private readonly Token[] allStaticTokens;
+    //private readonly Token[] operators, dividers, keywords;
+    //private readonly Token[] allStaticTokens;
 
-    //private readonly char[] operators = { '+', '-', '*', '/' };
-    //private readonly char[] dividers = { '(', ')', ';' };
-    //private readonly string[] keywords = { "div", "mod" };
-    //private readonly string[] allStaticTokens;
+    private readonly char[] operators = { '+', '-', '*', '/' };
+    private readonly char[] dividers = { '(', ')', ';' };
+    private readonly string[] keywords = { "div", "mod" };
+    private readonly string[] allStaticTokens;
 
-    public LexicalAnalyser(TextReader input)
+    public LexicalAnalyser()
     {
-        this.input = input;
         Initialize(out operators, out dividers, out keywords);
-        allStaticTokens = operators.Concat(dividers).Concat(keywords).ToArray();
-        //allStaticTokens = operators.Concat(dividers.Select(t => t.ToString()).Concat(keywords.Select(t => t.ToString()).ToArray();
+        //allStaticTokens = operators.Concat(dividers).Concat(keywords).ToArray();
+        allStaticTokens = keywords
+            .Concat(dividers.Select(t => t.ToString()))
+            .Concat(operators.Select(t => t.ToString()))
+            .ToArray();
     }
 
     private void Initialize(out char[] operators, out char[] dividers, out string[] keywords)
@@ -97,66 +103,117 @@ class LexicalAnalyser : IDisposable
         };
     }
 
+    //public IEnumerable<Token> GetTokens(string line)
+    //{
+    //    var probablyTokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+    //    for (int i = 0; i < probablyTokens.Length; i++)
+    //    {
+    //        string probablyToken = probablyTokens[i];
+    //        // search in static tokens
+    //        var token = allStaticTokens.FirstOrDefault(t => t == probablyToken);
+    //        if (token != null)
+    //            yield return new Token(TokenType.Operator, token);
+
+    //        // number
+    //        if (probablyToken.All(t => Char.IsDigit(t)))
+    //            yield return new Token(TokenType.Number, probablyToken);
+
+    //        StringBuilder sb = new StringBuilder();
+    //        for (int j = 0; j < probablyToken.Length; j++)
+    //        {
+    //            if (probablyToken[j] == '\'')
+    //            {
+    //                yield return new Token(TokenType.Comment, probablyToken.Substring(j, probablyToken.Length - j) + string.Join("", probablyTokens.Skip(i)));
+    //            }
+    //        }
+    //    }
+    //}
+
     public IEnumerable<Token> GetTokens(string line)
     {
+        var result = new List<Token>();
         var probablyTokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-        for (int i = 0; i < probablyTokens.Length; i++)
+        bool comment = false;
+        for (int i = 0; i < probablyTokens.Length && !comment; i++)
         {
             string probablyToken = probablyTokens[i];
-            // search in static tokens
-            var token = allStaticTokens.FirstOrDefault(t => t.Value == probablyToken);
-            if (token != null)
-                yield return token;
 
-            // number
-            if (probablyToken.All(t => Char.IsDigit(t)))
-                yield return new Token(TokenType.Number, probablyToken);
-
-            StringBuilder sb = new StringBuilder();
-            for (int j = 0; j < probablyToken.Length; j++)
+            if (keywords.Contains(probablyToken))
             {
-                if (probablyToken[j] == '\'')
+                result.Add(new Token(TokenType.Keyword, probablyToken));
+                continue;
+            }
+
+            // no spaces, so have to parse it manually
+            StringBuilder identifier = new StringBuilder();
+            for (int j = 0; j < probablyToken.Length && !comment; j++)
+            {
+                Token token = null;
+
+                if (operators.Contains(probablyToken[j]))
+                    token = new Token(TokenType.Operator, probablyToken[j].ToString());
+                else if (dividers.Contains(probablyToken[j]))
+                    token = new Token(TokenType.Divider, probablyToken[j].ToString());
+                else if (probablyToken[j] == '\'')
                 {
-                    yield return new Token(TokenType.Comment, probablyToken.Substring(j, probablyToken.Length - j) + string.Join("", probablyTokens.Skip(i)));
+                    // get rest of the probablyTokens, because its comment till end of the line
+                    // take comment without ' + next "tokens"
+                    // TODO BUG: Take comment properly
+                    token = new Token(TokenType.Comment, probablyToken.Substring(j + 1) + string.Join(" ", probablyTokens.Skip(i + 1)));
+                    comment = true;
                 }
+                // number?
+                else if (char.IsDigit(probablyToken[j]))
+                {
+                    int start = j;
+                    while (++j < probablyToken.Length && char.IsDigit(probablyToken[j])) ;
+
+                    token = new Token(TokenType.Number, probablyToken.Substring(start, j - start));
+                    j--;
+                }
+
+                if (token != null)
+                {
+                    if (identifier.Length != 0)
+                    { 
+                        result.Add(new Token(TokenType.Identifier, identifier.ToString()));
+                        identifier.Clear();
+                    }
+                    result.Add(token);
+                }
+                else
+                    identifier.Append(probablyToken[j]);
+            }
+
+            if (identifier.Length != 0)
+            {
+                result.Add(new Token(TokenType.Identifier, identifier.ToString()));
+                identifier.Clear();
             }
         }
-    }
 
-    /// <summary>
-    /// returns all tokens from the input
-    /// </summary>
-    /// <returns></returns>
-    public IEnumerable<Token> GetTokens()
-    {
-        using (input)
-        {
-            string line;
-            while (!string.IsNullOrEmpty((line = input.ReadLine())))
-                foreach (var token in GetTokens(line))
-                    yield return token;
-        }
-    }
-
-    public void Dispose()
-    {
-        input?.Dispose();
+        return result;
     }
 }
 
 
 class Program
 {
-    private static TextReader GetFakeInputStream()
+    private static StreamReader GetFakeInputStream()
     {
         var ms = new MemoryStream();
 
         using (var sw = new StreamWriter(ms, Encoding.Default, 1024, true) { AutoFlush = true })
         {
-            sw.WriteLine("    - '2 + (245 div 3);  ' poznamka");
-            sw.WriteLine("    -2 + (245 div 3);  ' poznamka");
-            sw.Flush();
+            //sw.WriteLine("    - '2 + (245 div 3);  ' poznamka");
+            //sw.WriteLine("    -2 + (245 div 3);  ' poznamka");
+            sw.WriteLine(@"-2 + 3*(245 div 17); ' a poznamka
+alfa-18*(-beta);
+b*b - 4 * a * c;
+' posledni poznamka
+-a*b/c;");
         }
 
         ms.Position = 0;
@@ -166,9 +223,18 @@ class Program
 
     static void Main(string[] args)
     {
+        var lexer = new LexicalAnalyser();
+
         using (var input = GetFakeInputStream())
-        using (var lexer = new LexicalAnalyser(input))
-            foreach (var item in lexer.GetTokens())
-                Console.WriteLine(item);
+        {
+            string line;
+            while (!input.EndOfStream)
+            {
+                line = input.ReadLine();
+                Console.WriteLine($"Line: {line}");
+                foreach (var item in lexer.GetTokens(line))
+                    Console.WriteLine(item);
+            }
+        }
     }
 }
