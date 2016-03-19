@@ -103,33 +103,6 @@ class LexicalAnalyser
         };
     }
 
-    //public IEnumerable<Token> GetTokens(string line)
-    //{
-    //    var probablyTokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-    //    for (int i = 0; i < probablyTokens.Length; i++)
-    //    {
-    //        string probablyToken = probablyTokens[i];
-    //        // search in static tokens
-    //        var token = allStaticTokens.FirstOrDefault(t => t == probablyToken);
-    //        if (token != null)
-    //            yield return new Token(TokenType.Operator, token);
-
-    //        // number
-    //        if (probablyToken.All(t => Char.IsDigit(t)))
-    //            yield return new Token(TokenType.Number, probablyToken);
-
-    //        StringBuilder sb = new StringBuilder();
-    //        for (int j = 0; j < probablyToken.Length; j++)
-    //        {
-    //            if (probablyToken[j] == '\'')
-    //            {
-    //                yield return new Token(TokenType.Comment, probablyToken.Substring(j, probablyToken.Length - j) + string.Join("", probablyTokens.Skip(i)));
-    //            }
-    //        }
-    //    }
-    //}
-
     public IEnumerable<Token> GetTokens(string line)
     {
         var probablyTokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -176,7 +149,7 @@ class LexicalAnalyser
                 if (token != null)
                 {
                     if (identifier.Length != 0)
-                    { 
+                    {
                         yield return new Token(TokenType.Identifier, identifier.ToString());
                         identifier.Clear();
                     }
@@ -206,7 +179,8 @@ class Program
         {
             //sw.WriteLine("    - '2 + (245 div 3);  ' poznamka");
             //sw.WriteLine("    -2 + (245 div 3);  ' poznamka");
-            sw.WriteLine(@"-2 + 3*(245 div 17); ' a poznamka
+            sw.WriteLine(@"    - '2 + (245 div 3);  ' poznamka
+- 2 + 3*(245 div 17); ' a poznamka
 alfa-18*(-beta);
 b*b - 4 * a * c;
 ' posledni poznamka
