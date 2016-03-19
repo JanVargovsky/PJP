@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 enum TokenType
 {
@@ -73,30 +72,6 @@ class LexicalAnalyser
         operators = new char[] { '+', '-', '*', '/' };
         dividers = new char[] { '(', ')', ';' };
         keywords = new string[] { "div", "mod" };
-    }
-
-    private void Initialize(out Token[] operators, out Token[] dividers, out Token[] keywords)
-    {
-        operators = new Token[]
-        {
-            new Token(TokenType.Operator, "+"),
-            new Token(TokenType.Operator, "-"),
-            new Token(TokenType.Operator, "*"),
-            new Token(TokenType.Operator, "/"),
-        };
-
-        dividers = new Token[]
-        {
-            new Token(TokenType.Divider, "("),
-            new Token(TokenType.Divider, ")"),
-            new Token(TokenType.Divider, ";"),
-        };
-
-        keywords = new Token[]
-        {
-            new Token(TokenType.Keyword, "div"),
-            new Token(TokenType.Keyword, "mod"),
-        };
     }
 
     public IEnumerable<Token> GetTokens(string line)
@@ -196,6 +171,7 @@ b*b - 4 * a * c;
                 Console.WriteLine($"Line: {line}");
                 foreach (var item in lexer.GetTokens(line))
                     Console.WriteLine(item);
+                Console.WriteLine();
             }
         }
     }
