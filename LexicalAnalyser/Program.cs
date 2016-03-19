@@ -95,10 +95,13 @@ class LexicalAnalyser
             {
                 Token token = null;
 
+                // + - * /
                 if (operators.Contains(probablyToken[j]))
                     token = new Token(TokenType.Operator, probablyToken[j].ToString());
+                // ( ) ;
                 else if (dividers.Contains(probablyToken[j]))
                     token = new Token(TokenType.Divider, probablyToken[j].ToString());
+                // ' comment
                 else if (probablyToken[j] == '\'')
                 {
                     // get rest of the probablyTokens, because its comment till end of the line
@@ -107,7 +110,7 @@ class LexicalAnalyser
                     token = new Token(TokenType.Comment, probablyToken.Substring(j + 1) + string.Join(" ", probablyTokens.Skip(i + 1)));
                     comment = true;
                 }
-                // number?
+                // number
                 else if (char.IsDigit(probablyToken[j]))
                 {
                     int start = j;
@@ -119,17 +122,22 @@ class LexicalAnalyser
 
                 if (token != null)
                 {
+                    // there was identifier before
                     if (identifier.Length != 0)
                     {
+                        // return identifier first
                         yield return new Token(TokenType.Identifier, identifier.ToString());
                         identifier.Clear();
                     }
+                    // return current token (operaotr, divider, comment or number
                     yield return token;
                 }
                 else
+                    // otherwise identifier is still in game
                     identifier.Append(probablyToken[j]);
             }
 
+            // if there was identifier on the end, lets add him too
             if (identifier.Length != 0)
                 yield return new Token(TokenType.Identifier, identifier.ToString());
         }
