@@ -132,7 +132,6 @@ class LexicalAnalyser
 
     public IEnumerable<Token> GetTokens(string line)
     {
-        var result = new List<Token>();
         var probablyTokens = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
         bool comment = false;
@@ -142,7 +141,7 @@ class LexicalAnalyser
 
             if (keywords.Contains(probablyToken))
             {
-                result.Add(new Token(TokenType.Keyword, probablyToken));
+                yield return new Token(TokenType.Keyword, probablyToken);
                 continue;
             }
 
@@ -178,10 +177,10 @@ class LexicalAnalyser
                 {
                     if (identifier.Length != 0)
                     { 
-                        result.Add(new Token(TokenType.Identifier, identifier.ToString()));
+                        yield return new Token(TokenType.Identifier, identifier.ToString());
                         identifier.Clear();
                     }
-                    result.Add(token);
+                    yield return token;
                 }
                 else
                     identifier.Append(probablyToken[j]);
@@ -189,12 +188,10 @@ class LexicalAnalyser
 
             if (identifier.Length != 0)
             {
-                result.Add(new Token(TokenType.Identifier, identifier.ToString()));
+                yield return new Token(TokenType.Identifier, identifier.ToString());
                 identifier.Clear();
             }
         }
-
-        return result;
     }
 }
 
