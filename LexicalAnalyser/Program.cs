@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 enum TokenType
 {
@@ -155,10 +156,7 @@ class LexicalAnalyser
             }
 
             if (identifier.Length != 0)
-            {
                 yield return new Token(TokenType.Identifier, identifier.ToString());
-                identifier.Clear();
-            }
         }
     }
 }
