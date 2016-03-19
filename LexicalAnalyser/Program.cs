@@ -54,9 +54,6 @@ class Token
 
 class LexicalAnalyser
 {
-    //private readonly Token[] operators, dividers, keywords;
-    //private readonly Token[] allStaticTokens;
-
     private readonly char[] operators = { '+', '-', '*', '/' };
     private readonly char[] dividers = { '(', ')', ';' };
     private readonly string[] keywords = { "div", "mod" };
@@ -65,7 +62,6 @@ class LexicalAnalyser
     public LexicalAnalyser()
     {
         Initialize(out operators, out dividers, out keywords);
-        //allStaticTokens = operators.Concat(dividers).Concat(keywords).ToArray();
         allStaticTokens = keywords
             .Concat(dividers.Select(t => t.ToString()))
             .Concat(operators.Select(t => t.ToString()))
@@ -177,8 +173,6 @@ class Program
 
         using (var sw = new StreamWriter(ms, Encoding.Default, 1024, true) { AutoFlush = true })
         {
-            //sw.WriteLine("    - '2 + (245 div 3);  ' poznamka");
-            //sw.WriteLine("    -2 + (245 div 3);  ' poznamka");
             sw.WriteLine(@"    - '2 + (245 div 3);  ' poznamka
 - 2 + 3*(245 div 17); ' a poznamka
 alfa-18*(-beta);
